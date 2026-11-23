@@ -1,0 +1,59 @@
+
+name: Build Android APK
+
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Code ophalen
+        uses: actions/checkout@v4
+
+      - name: Node installeren
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Java installeren
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Android SDK installeren
+        uses: android-actions/setup-android@v3
+
+      - name: Afhankelijkheden installeren
+        run: |
+          corepack enable
+          yarn install --frozen-lockfile
+
+      - name: Android-project genereren
+        run: npx expo prebuild --platform android --no-install --clean
+        env:
+          CI: "1"
+
+      - name: APK bouwen
+        working-directory: frontend/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+        env:
+          NODE_ENV: production
+
+      - name: APK hernoemen
+        run: cp frontend/android/app/build/outputs/apk/release/app-release.apk Dagplanner.apk
+
+      - name: APK uploaden
+        uses: actions/upload-artifact@v4
+        with:
+          name: Dagplanner-apk
+          path: Dagplanner.apk
+          retention-days: 30
